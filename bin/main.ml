@@ -13,7 +13,7 @@ let createBoard size =
   in
   let rec createBoardAcc buff maxSize =
     if List.length buff < maxSize then
-      createBoardAcc (createLine [] 0 :: buff) size
+      createBoardAcc (createLine [] maxSize :: buff) size
     else
       List.rev buff;
   in
@@ -30,46 +30,44 @@ let displayBoard board =
 in
   let rec displayRow = function
   | [] -> ()
-  | x :: y -> displayCell x; displayRow y
+    | x :: y -> displayCell x; print_newline (); displayRow y
 in
   displayRow board
 
 
-let updateBoard board = 
-  let size = Array.length board in
-  let new_board = Array.copy board in
-  for i = 0 to size - 1 do
-    for j = 0 to size - 1 do
-      let neighbors = [(i-1, j-1); (i-1, j); (i-1, j+1);
-                      (i, j-1);               (i, j+1);
-                      (i+1, j-1); (i+1, j); (i+1, j+1)] in
-
-      let live_neighbors = 
-        List.fold_left (fun count (x, y) ->
-          if 0 <= x && x < size && 0 <= y && y < size && board.(x).(y) then
-            count + 1
-          else
-            count
-        ) 0 neighbors in
-
-      if board.(i).(j) then
-        if live_neighbors < 2 || live_neighbors > 3 then
-          new_board.(i).(j) <- false
-      else if live_neighbors = 3 then
-        new_board.(i).(j) <- true
-    done;
-  done;
-  new_board
+let updateBoard (board : bool list list) : bool list list = 
+  let neighbors = [(-1, -1); (-1, 0); (-1, 1);
+                    (0, -1);               (0, 1);
+                    (1, -1); (1, 0); (1, 1)] in
+  let rowLength = List.length (List.nth board 0) in
+  let columnLength = List.length board in 
+  let rec updateCells buff row column = 
+    if columnLength = column then List.rev buff else
+    let getElement row column =
+      if column >= rowLength || row >= columnLength || row < 0 || column < 0 then false else
+      List.nth (List.nth board row) column
+    in
+    let neighborCount = List.fold_left (fun neighbour (x, y) -> if getElement (row + y) (column + x) then neighbour + 1 else neighbour) 0 neighbors in
+    match (getElement row column, neighborCount) with
+    | (false, 3) -> updateCells (true :: buff) row (column + 1)
+    | (true, x) when x = 3 || x = 2 -> updateCells (true :: buff) row (column + 1)
+    | _ -> updateCells (false :: buff) row (column + 1)   
+  in
+  let rec updateLines buff row = 
+    if columnLength = row then buff else
+      updateLines ((updateCells [] row 0) :: buff) (row + 1)
+  in
+  List.rev (updateLines [] 0)
 ;;
 
 
 let runGameOfLife boardSize generations =
-  let listBoard = createBoard boardSize in
-  let board = Array.of_list (List.map (fun x -> Array.of_list x) listBoard) in
+  let board = createBoard boardSize in
   let rec runGenerations board = function
     | 0 -> ()
-    | x -> displayBoard board; runGenerations (updateBoard board) x 
+    | x -> displayBoard board; Unix.sleep 1; runGenerations (updateBoard board) (x - 1)
   in
   runGenerations board generations
 ;;
 
+runGameOfLife 50 100

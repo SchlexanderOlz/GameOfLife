@@ -1,4 +1,4 @@
 (executable
  (public_name gameOfLife)
  (name main)
- (libraries gameOfLife))
+ (libraries gameOfLife unix))
